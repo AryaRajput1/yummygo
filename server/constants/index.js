@@ -1,0 +1,1 @@
+export const AVAILABLE_ROLES = ["USER", "OWNER", "DELIVERY_PERSON"];
