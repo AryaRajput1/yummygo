@@ -2,21 +2,25 @@ import { useState } from "react";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import { AVAILABLE_ROLES } from "../constants";
 import { FcGoogle } from "react-icons/fc";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { signUpFormSchema } from "../validations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import apiWrapper from "../utils/apiWrapper";
 import { toast } from "react-toastify";
 import { loginWithGoogle } from "../utils/loginWithGoogle";
+import { useDispatch } from "react-redux";
+import { setUser } from "../store/slices/userSlice";
 
 const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState("USER");
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const {
     register,
-    formState: { errors, isSubmitting},
+    formState: { errors, isSubmitting },
     handleSubmit,
     getValues,
   } = useForm({
@@ -39,6 +43,8 @@ const SignUp = () => {
       toast.success(
         response.data.message || "Sign up successful! Please sign in.",
       );
+
+      dispatch(setUser(response.data.user));
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "An error occurred during sign up",
@@ -47,27 +53,31 @@ const SignUp = () => {
   };
 
   const handleLoginWithGoogle = async () => {
-    try {
-      const {mobile} = getValues();
+    const { mobile } = getValues();
 
-      if(!mobile) {
-        toast.error("Please enter your mobile number before signing in with Google.");
-        return;
-      }
-      loginWithGoogle(async (user) => {
-      const response = await apiWrapper.post("/auth/register", {
-        email: user.email,
-        fullName: user.displayName,
-        mobile,
-      });
+    if (!mobile) {
+      toast.error(
+        "Please enter your mobile number before signing in with Google.",
+      );
+      return;
+    }
+    loginWithGoogle(async (user, token) => {
+      try {
+        const response = await apiWrapper.post("/auth/login-with-google", {
+          token,
+          mobile,
+        });
         toast.success(
           `Welcome, ${user.displayName}! You have signed in with Google.`,
         );
-
-      });
-    } catch (error) {
-      toast.error(error.message || "Google sign-in failed. Please try again.");
-    }
+        dispatch(setUser(response.data.user));
+        navigate("/");
+      } catch (error) {
+        toast.error(
+          error.message || "Google sign-in failed. Please try again.",
+        );
+      }
+    });
   };
 
   return (

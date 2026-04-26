@@ -2,15 +2,38 @@ import { useState } from "react";
 import { FaRegEye, FaRegEyeSlash } from "react-icons/fa";
 import { AVAILABLE_ROLES } from "../constants";
 import { FcGoogle } from "react-icons/fc";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { signInFormSchema } from "../validations";
 import { zodResolver } from "@hookform/resolvers/zod";
 import apiWrapper from "../utils/apiWrapper";
 import { toast } from "react-toastify";
+import { useDispatch } from "react-redux";
+import { setUser } from "../store/slices/userSlice";
+import { loginWithGoogle } from "../utils/loginWithGoogle";
 
 const SignIn = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const dispatch = useDispatch();
+    const navigate = useNavigate();
+
+  const handleLoginWithGoogle = async () => {
+    loginWithGoogle(async (user, token) => {
+      try {
+        const response = await apiWrapper.post("/auth/login-with-google", {
+          token,
+        });
+        toast.success(
+          `Welcome, ${user.displayName}! You have signed in with Google.`,
+        );
+        navigate('/')
+      } catch (error) {
+        toast.error(
+          "Google sign-in failed. Please try sign-up.",
+        );
+      }
+    });
+  };
 
   const {
     register,
@@ -31,6 +54,8 @@ const SignIn = () => {
       });
 
       toast.success(response.data.message || "Sign In successful.");
+      dispatch(setUser(response.data.user));
+      navigate('/')
     } catch (error) {
       toast.error(
         error?.response?.data?.message || "An error occurred during sign in",
@@ -48,6 +73,7 @@ const SignIn = () => {
           <button
             type="button"
             className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+            onClick={handleLoginWithGoogle}
           >
             <FcGoogle />
             Sign In with Google
