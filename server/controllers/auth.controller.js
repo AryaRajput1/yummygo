@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { generateAuthToken } from "../utils/generateAuthToken.js";
 import { sendOtpMail } from "../utils/mail.js";
 import { generateOtp } from "../utils/generateOtp.js";
+import admin from "../config/firebase.js";
 
 export const signUp = async (req, res) => {
   try {
@@ -46,7 +47,7 @@ export const signUp = async (req, res) => {
 
     await newUser.save();
 
-    const token = generateAuthToken(newUser);
+    const token = await generateAuthToken(newUser);
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -90,7 +91,7 @@ export const signIn = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = generateAuthToken(user);
+    const token = await generateAuthToken(user);
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -227,6 +228,51 @@ export const resetPassword = async (req, res) => {
     await user.save();
 
     return res.status(200).json({ message: "Password reset successfully" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Server error", error: error.message });
+  }
+};
+
+export const loginWithGoogle = async (req, res) => {
+  try {
+    const { token: googleToken, mobile } = req.body;
+
+    const decoded = await admin.auth().verifyIdToken(googleToken);
+
+    const { email, name: fullName } = decoded;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      if (!mobile || mobile.length < 10) {
+        return res.status(400).json({
+          message: "Mobile number must be at least 10 characters long",
+        });
+      }
+
+      user = new User({
+        fullName,
+        email,
+        mobile,
+      });
+
+      await user.save();
+    }
+
+    const token = await generateAuthToken(user);
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    });
+
+    return res
+      .status(201)
+      .json({ message: "User registered successfully", user });
   } catch (error) {
     return res
       .status(500)

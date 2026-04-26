@@ -4,4 +4,6 @@ import { getCurrentUser } from "../controllers/user.controller.js";
 
 const router = Router();
 
-router.post("/current", isAuth, getCurrentUser);
+router.get("/current", isAuth, getCurrentUser);
+
+export default router;
